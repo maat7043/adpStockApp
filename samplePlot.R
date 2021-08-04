@@ -20,7 +20,6 @@ IQR = q75 - q25
 df <- filter(df, df$adp >= (q25 - (1.5*IQR))) %>%
   filter(df$adp <= (q75 + (1.5*IQR)))
 
-
 # Group by date
 df$Date <- as.Date(df$timestamp)
 df <- df %>%
@@ -29,8 +28,6 @@ df <- df %>%
             min = min(adp), 
             max = max(adp), 
             med = median(adp))
-
-
 
 # Add missing dates
 date_range <- tibble(

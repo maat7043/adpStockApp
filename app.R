@@ -9,15 +9,13 @@
 
 library(shiny)
 library(tidyverse)
+library(ffscrapr)
 library(ggplot2)
 library(pracma)
 library(quantmod)
 library(tidyquant)
 library(plotly)
 library(ggthemes)
-
-# Load Cached Objects
-load("adpData.RData")
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -26,18 +24,19 @@ ui <- fluidPage(
    titlePanel("Algorithmic Stock Trading Player ADPs"),
    
    # Show a plot of the generated distribution
-  plotOutput("distPlot"),
+  plotlyOutput("distPlot"),
   
   hr(),
    
    # Sidebar with a slider input for number of bins 
    fluidRow(
      column(4,
-            textInput(
+            selectizeInput(
               inputId = "playerID",
               label = h4("Select Player:"),
-              placeholder = "11675", # Davante Adams
-              value = 11675
+              selected = 11675,
+              multiple = FALSE,
+              choices = NULL
             ),
             
             br(),
@@ -67,11 +66,21 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
+  # Load Cached Objects
+  adpObject <- readRDS("data/appData.rds")
+  
+  playerList <- adpObject %>%
+    distinct(player_id, .keep_all = TRUE) %>%
+    select(player_id, pos, player_name)
+  
+  # Updated Player List
+  updateSelectizeInput(session, 'playerID', choices = playerList$player_id, server = FALSE)
     
    output$distPlot <- renderPlotly({
-     
      # Fliter to player in question
-     df <- filter(adpObject, player_id == get(input$playerID))
+     index <- which(playerList$plater_id %in% input$playerID)
+     
+     df <- adpObject %>% filter(player_id == input$playerID )
      
      # Calculate IQR and remove outliers
      q25 = quantile(df$adp, 0.25)
@@ -80,7 +89,6 @@ server <- function(input, output, session) {
      
      df <- filter(df, df$adp >= (q25 - (1.5*IQR))) %>%
        filter(df$adp <= (q75 + (1.5*IQR)))
-     View(df)
      
      # Group by date
      df$Date <- as.Date(df$timestamp)
@@ -119,10 +127,10 @@ server <- function(input, output, session) {
      
      candles <- list(line = list(color = '#B6B6B4'))
      
-     output$distPlot <- df %>% plot_ly(x = df$Date, type="candlestick",
-                           open = df$avg, close = df$med,
-                           high = df$max, low = df$min, name = "Daily ADP",
-                           increasing = candles, decreasing = candles) %>%
+     distPlot <- df %>% plot_ly(x = df$Date, type="candlestick",
+                                open = df$avg, close = df$med,
+                                high = df$max, low = df$min, name = "Daily ADP",
+                                increasing = candles, decreasing = candles) %>%
        add_lines(x = df$Date, y= df$ma10, color = I("orange"), name = "10 day EMA") %>%
        add_lines(x = df$Date, y= df$ma20, color = I("blue"), name = "20 day EMA") %>%
        add_lines(x = df$Date, y= df$ma50, color = I("black"), name = "50 day EMA")
@@ -132,25 +140,27 @@ server <- function(input, output, session) {
      for (i in 1:dim(df)[1]) {
        # Red
        if (df$ma20[i] > df$ma50[i] && df$ma20[i-1] <= df$ma50[i-1]){
-         output$distPlot <- output$distPlot %>%
+         distPlot <- distPlot %>%
            add_lines(x=df$Date[i], y=df$avg, color=I("red"))
        }
        
        # green
        if (df$ma20[i] < df$ma50[i] && df$ma20[i-1] >= df$ma50[i-1]){
-         output$distPlot <- output$distPlot %>%
+         distPlot <- distPlot %>%
            add_lines(x=df$Date[i], y=df$avg, color=I("green"))
        }
      }
      
-     output$distPlot <- output$distPlot %>% layout(title = "Algorithmic Stock Trading with Player ADPs",
-                           showlegend = FALSE,
-                           xaxis = list(rangeslider = list(visible = F),
-                                        title="Date"),
-                           yaxis = list(autorange = "reversed",
-                                        title="Daily ADP"))
+     distPlot <- distPlot %>% layout(showlegend = FALSE,
+                                     xaxis = list(rangeslider = list(visible = F),
+                                                  title="Date"),
+                                     yaxis = list(autorange = "reversed",
+                                                  title="Daily ADP"))
+     
+     return(distPlot)
    })
 }
+   
 
 # Run the application 
 shinyApp(ui = ui, server = server)
