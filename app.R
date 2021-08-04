@@ -9,13 +9,11 @@
 
 library(shiny)
 library(tidyverse)
-library(ffscrapr)
-library(ggplot2)
 library(pracma)
-library(quantmod)
-library(tidyquant)
 library(plotly)
 library(ggthemes)
+
+options(warn = - 1)                # Disable warning messages globally
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
