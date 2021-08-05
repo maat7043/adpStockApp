@@ -76,6 +76,7 @@ server <- function(input, output, session) {
     
    output$distPlot <- renderPlotly({
      # Fliter to player in question
+     req(input$playerID)
      index <- which(playerList$plater_id %in% input$playerID)
      
      df <- adpObject %>% filter(player_id == input$playerID )
@@ -96,7 +97,6 @@ server <- function(input, output, session) {
                  min = min(adp), 
                  max = max(adp), 
                  med = median(adp))
-     
      
      
      # Add missing dates
@@ -162,4 +162,3 @@ server <- function(input, output, session) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-
